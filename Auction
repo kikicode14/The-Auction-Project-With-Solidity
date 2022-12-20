@@ -1,0 +1,49 @@
+pragma solidity >= 0.7.0 < 0.9.0;
+
+contract TheAuction{
+
+    address public topBidder;
+    address payable public theAuctioneer;
+    uint public topBid;
+    uint public auctionEndTime;
+    bool ended;
+
+    mapping (address => uint ) pendingReturns;
+
+    event topBidIncreased(address bidder, uint amount);
+    event auctionResult(address winner , uint amount);
+
+    constructor (uint _biddingTime , address payable _beneficiary){
+        theAuctioneer = _beneficiary;
+        auctionEndTime = block.timestamp + _biddingTime ;
+    }
+
+    function bid() public payable{
+        if(auctionEndTime > block.timestamp) revert('The Auction Is Over!');
+        if(msg.value < topBid) revert('Your Bid Is Not Enough To Enter The Auction. Please Chech Your Bid.');
+        if(topBid != 0){
+            pendingReturns[topBidder] += topBid; }
+
+            topBidder = msg.sender;
+            topBid = msg.value;
+            emit topBidIncreased(msg.sender, msg.value);
+        }
+
+    function withdraw() public payable returns(bool){
+        uint amount = pendingReturns[msg.sender];
+        if(amount > 0){
+            pendingReturns[msg.sender] = 0;
+        }
+
+        if(!payable(msg.sender).send(amount)){
+            pendingReturns[msg.sender] = amount;
+        } return true;
+    }
+
+    function auctionEnd() public{
+        if(ended) revert ('The Auction Has Just Ended!');
+        ended = true;
+        emit auctionResult(topBidder, topBid);
+        theAuctioneer.transfer(topBid);
+    }
+}
